@@ -1,0 +1,88 @@
+# OLKTančíky (téma Akční hra)
+Autor: Oleg Lesnoy
+
+## Téma z progtestu
+
+Implementujte jednoduchou střílecí hru alespoň jednoho hráče proti počítači.
+
+Hra musí splňovat následující funkcionality:
+
+1. Objekty, které je možné zničit (nepřátelské jednotky, statické barikády)
+2. Pohybovat s hráčem (chůze panáčka, let vesmírné lodi, páčka na odrážení míčků)
+3. Po zničení objektu s určitou pravděpodobností zůstane bonus, implementujte několik různých bonusů (munice, rychlejší nabíjení,...)
+4. Implementujte jednoduchý "fyzikální" model (setrvačnost lodi, gravitace, odrážení, nabíjení zbrani,...)
+5. Implementujte načítání (generátoru) mapy ze souboru.
+6. Implementujte perzistenci (ukládání a načítání) tabulky s nejlepšími hráči do souboru.
+
+Kde lze využít polymorfismus? (doporučené)
+
+- Rozdělení objektů: (ne)pohyblivý, hráč vs. nepřítel
+- Různé bonusy: munice, silnější zbraně, zdvojení zbraní, rychlejší přebíjení,...
+- Uživatelské rozhraní: konzole, ncurses, SDL, OpenGL (různé varianty), ...
+
+Další informace
+
+- https://cs.wikipedia.org/wiki/Arkanoid
+- https://www.arcade-history.com/?n=ace-invaders&page=detail&id=115810
+- https://en.wikipedia.org/wiki/Asteroids_(video_game)
+- https://en.wikipedia.org/wiki/Tank_Battalion
+
+### Zadání hry OLKTančíky
+
+Za inspiraci jsem použil hru "Танчики", kterou jsem rád hral, když jsem byl malý. OL v názvu mé hry, je zkrátka od Oleg Lesnoy(moje jméno a příjmení), další písmeno K znamená, že moje hra je konzolní(používám ncurses).
+
+Při spuštění hry před uživatelem se objeví menu, ve kterém on si může vybrat z nábízených možnosti:
+
+>nová hra ... vytvoří novou hru
+>score tabulka ... zobrazí tři nejlepší hráče a jejich score
+>konec ... ukončí program
+
+Pokud si zvoli "nová hra", objeví se text: "Napište své jméno: ", pak se objeví nové menu:
+
+>vygenerovat bojiště ... vygeneruje mapu
+>načíst bojiště ze souboru ... načte mapu ze souboru (mapa by měla být vždy 45 x 45)
+
+Po zvolení jedne z možnosti se objeví text: 
+
+"Jsi přípraven?" a dvě možnosti, které si lze vybrat:
+>Ano, jsem ten, kdo získá nejvyšší score! ... spusti hru
+>Ještě ne, zkusím to příště ... ukončí hru
+
+V samotné hře budou objekty, které je možné zničit jako například: nepřatelské tanky, betonové stěny, dřevěné stěny a sklo. Tyto tří různé barikády se liší nejenom tím, že pro jejich zničení bude potřeba různý počet výstřelů, ale také i tím, že skrz betonové a dřevěné stěny nepřátel nemůže vidět tank uživatele, ale skrz sklo může. To znamená, že se není nejlepší nápad schovat za barikádou ze skla. Také se ve hře při dosažení definovaného scoru začínají přibývat lepší nepřatelské tanky (mají lepší zbraň a lepší brnění). Také při dosažení definovaného scoru se zlepšuje zbraň a brnění uživatelského tanku.
+
+Tank ve hře má následující vzhled:
+
+Vertikálně (podel osy X):
+
+* | *   * - *
+* + *   * + *
+* - *   * | *
+
+Vodorovně (podel osy Y):
+
+* * *   * * *
+| + -   - + |
+* * *   * * *
+
+Vzhled tanku se nemění při jeho zlepšení. 
+
+Zbraň se děli na tři úrovně (slabá - kulomet, střední - raketa, silná - laser).
+Betonovou stěnu lze zničit pouze laserem.
+Dřevěné stěny lze zničit laserem, jednou raketou, nebo 5 výstřely z kulometu.
+Sklo lze zničit čím koliv dokonce i tankem bez použití zbraně. 
+
+Také ve hře i když to zní divně hrač může "sbírat miny" (ty jsou na mapě označeny jako "m"). Pak může tyto miny využit tak, že v nějakém místě je nechá a nepřatelský tank na ni najede a tím se zničí.
+
+Hrač má omezený počet životů (tři), to znamená, že pokud bude jeho tank zničen třikrát, hra se ukončí a zobrazí se jeho score. Po každé smrti tank hrače znovu má nejslabší zbraň a brnění.
+
+#### Kde mám polymorfismus?
+
+Polymorfismus využívám u třidy `CMapBuilder`, která má abstraktní metodu `generateMap`. Tuto metodu přetěžují implementace `CMapGenerator` a `CMapFile`. `CMapGenerator` vytvoří náhodnou mapu. `CMapFile` se zeptá na jméno souboru. `CMapGenerator` pomocí metody `generateMap` vygeneruje prazdnou mapu, která obsahuje pouze hranice(hranice není objektem a nemůže být zničena). Pak do této mapy náhodně přidá betonové a dřevěné stěny, sklo a miny. `CMapFile` pomocí metody `generateMap` načte mapu ze souboru.
+
+Polymorfismus využívám u třidy `GameObject`, která má abstraktní metodu `show()`. Tuto metodu přetěžují implementace `Tank` a třidy, které dědí třidu `Ammunition` (`MachineGun`, `Rocket` a `Laser`) a také třidy, které dědí třidu `Barrier` (`ConcreteWall`, `WoodenWall` a `GlassWall`)
+
+Také se polymorfismus využívá u třidy `NonStaticGameObject`. `GameObject` je třida, která se rozděluje na `StaticGameObject` a `NonStaticGameObject`. `StaticGameObject` se rozděluje na `Barrier` a  `Mine`. `Barrier` se rozděluje na `ConcreteWall`, `WoodenWall` a `GlassWall`. `NonStaticGameObject` se rozděluje na `Tank` a `Ammunition`. 
+
+`NonStaticGameObject` má abstraktní metodu `move`, kterou přetěžují `Tank` a `Ammunition`. Zatímco munice se může pohybovat pouze v přímém směru, tank se může(musí) pohybovat různými směry a také se měnit směr pohybu. `Tank` se rozdělují na `MyTank` a `EnemyTank`. `Ammunition` se rozdělují na `MachineGun`, `Rocket` a `Laser`.
+
+
